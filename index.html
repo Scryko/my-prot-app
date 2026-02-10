@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ProtTrack</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const App = () => {
+            const [weight, setWeight] = useState(75);
+            const [consumed, setConsumed] = useState(0);
+            const [scanning, setScanning] = useState(false);
+
+            const goal = weight * 2;
+
+            const scanProduct = () => {
+                setScanning(true);
+                setTimeout(() => {
+                    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+                    scanner.render((text) => {
+                        fetch(`https://world.openfoodfacts.org/api/v0/product/${text}.json`)
+                            .then(r => r.json())
+                            .then(d => {
+                                if(d.status === 1) {
+                                    const p = d.product.nutriments.proteins_100g || 0;
+                                    const name = d.product.product_name_fr || "Inconnu";
+                                    const qty = prompt(`Produit: ${name}\nProt pour 100g: ${p}g\nCombien de grammes mangés ?`, "100");
+                                    if(qty) setConsumed(prev => prev + (p * qty / 100));
+                                    scanner.clear();
+                                    setScanning(false);
+                                }
+                            });
+                    });
+                }, 100);
+            };
+
+            return (
+                <div className="p-5 max-w-md mx-auto font-sans">
+                    <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-xl mb-5 text-center">
+                        <h1 className="text-lg opacity-80 uppercase tracking-wider">Objectif Protéines</h1>
+                        <div className="text-5xl font-black my-2">{Math.round(consumed)}g <span className="text-xl opacity-60">/ {goal}g</span></div>
+                        <div className="w-full bg-blue-400 h-3 rounded-full mt-4 overflow-hidden">
+                            <div style={{width: `${Math.min(consumed/goal*100, 100)}%`}} className="bg-white h-full rounded-full transition-all duration-500"></div>
+                        </div>
+                    </div>
+
+                    <button onClick={scanProduct} className="w-full bg-black text-white p-5 rounded-2xl font-bold mb-4 shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform">
+                        <span>📷</span> SCANNER UN PRODUIT
+                    </button>
+                    
+                    {scanning && <div id="reader" className="mb-4 rounded-xl overflow-hidden border-4 border-blue-500"></div>}
+                    
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                        <label className="text-xs font-bold text-gray-400 uppercase">Ton poids actuel (kg)</label>
+                        <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full text-2xl font-bold outline-none text-blue-600" />
+                    </div>
+
+                    <p className="text-center text-gray-400 text-xs mt-8">Mass Gain App - iPhone PWA ready</p>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
